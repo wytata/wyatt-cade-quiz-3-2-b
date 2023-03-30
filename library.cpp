@@ -23,7 +23,10 @@ condition_variable checkout_ready;
 */
 void books_checkout(int quantity)
 {
-
+    unique_lock<mutex> ul(mut);
+    checkout_ready.wait(ul, [quantity]{return books_available >= quantity;});
+    books_available -= quantity;
+    ul.unlock();
 }
 
 /* TODO:
@@ -34,7 +37,10 @@ void books_checkout(int quantity)
  */
 void books_checkin(int quantity)
 {
-
+    unique_lock<mutex> ul(mut);
+    books_available += quantity;
+    ul.unlock();
+    checkout_ready.notify_one();
 }
 
 /**
@@ -61,8 +67,14 @@ int main()
     thread *student_threads = new thread[6];
 
     /*TODO: Create the six student threads that will use the function (manager) for a respective number of books (cart[i])*/
+    for (int i = 0; i < 6; i++) {
+        student_threads[i] = thread(manager, i, cart[i]);
+    }
 
     /*TODO: Wait for all the six threads*/
+    for (int i = 0; i < 6; i++) {
+        student_threads[i].join();
+    }
 
     delete[] student_threads;
     return 0;
